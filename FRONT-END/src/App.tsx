@@ -110,7 +110,6 @@ function App() {
       resetForm();
       await getContacts();
 
-      // Limpiar mensaje de éxito después de 3 segundos
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       const errorMessage =
@@ -142,7 +141,6 @@ function App() {
       setSuccess("Contacto eliminado correctamente");
       await getContacts();
 
-      // Limpiar mensaje de éxito después de 3 segundos
       setTimeout(() => setSuccess(null), 3000);
     } catch (err) {
       const errorMessage =

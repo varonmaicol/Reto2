@@ -15,7 +15,6 @@ export interface CreateContactDTO {
   pais: string;
 }
 
-// Obtener todos los contactos
 export const fetchContacts = async (): Promise<Contact[]> => {
   const res = await fetch(CONTACTS_ENDPOINT);
   if (!res.ok) {
@@ -25,8 +24,9 @@ export const fetchContacts = async (): Promise<Contact[]> => {
   return Array.isArray(data) ? data : [];
 };
 
-// Crear nuevo contacto
-export const createContact = async (contactData: CreateContactDTO): Promise<void> => {
+export const createContact = async (
+  contactData: CreateContactDTO,
+): Promise<void> => {
   const res = await fetch(CONTACTS_ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -39,10 +39,9 @@ export const createContact = async (contactData: CreateContactDTO): Promise<void
   }
 };
 
-// Actualizar contacto
 export const updateContact = async (
   id: number,
-  contactData: CreateContactDTO
+  contactData: CreateContactDTO,
 ): Promise<void> => {
   const res = await fetch(`${CONTACTS_ENDPOINT}/${id}`, {
     method: "PUT",
@@ -52,11 +51,12 @@ export const updateContact = async (
 
   if (!res.ok) {
     const data = await res.json();
-    throw new Error(data.message || `Error ${res.status} al actualizar contacto`);
+    throw new Error(
+      data.message || `Error ${res.status} al actualizar contacto`,
+    );
   }
 };
 
-// Eliminar contacto
 export const deleteContact = async (id: number): Promise<void> => {
   const res = await fetch(`${CONTACTS_ENDPOINT}/${id}`, {
     method: "DELETE",
