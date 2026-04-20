@@ -9,38 +9,56 @@ import {
   type CreateContactDTO,
 } from "./services/contactService";
 
-interface FormData extends CreateContactDTO {}
+const initialForm: CreateContactDTO = {
+  nombres: "",
+  telefono: "",
+  correo: "",
+  pais: "",
+};
 
-const regex = /^[a-zA-Z0-9@.\s]+$/;
+const textRegex = /^[a-zA-Z0-9@.\s]+$/;
 
 function App() {
   const [contacts, setContacts] = useState<Contact[]>([]);
-  const [form, setForm] = useState<FormData>({
-    nombres: "",
-    telefono: "",
-    correo: "",
-    pais: "",
-  });
+  const [form, setForm] = useState<CreateContactDTO>(initialForm);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
-    getContacts();
+    loadContacts();
   }, []);
 
-  const getContacts = async () => {
+  const getErrorMessage = (err: unknown) =>
+    err instanceof Error ? err.message : "Error desconocido";
+
+  const clearMessages = () => {
+    setError("");
+    setSuccess("");
+  };
+
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId(null);
+    clearMessages();
+  };
+
+  const showSuccess = (message: string) => {
+    setSuccess(message);
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
+  const loadContacts = async () => {
     setLoading(true);
-    setError(null);
+    setError("");
+
     try {
       const data = await fetchContacts();
       setContacts(data);
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Error desconocido";
-      setError(errorMessage);
+      setError(getErrorMessage(err));
       setContacts([]);
     } finally {
       setLoading(false);
@@ -48,112 +66,99 @@ function App() {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    setError(null);
-    setSuccess(null);
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+
+    clearMessages();
   };
 
-  const validateForm = (): string | null => {
-    if (!form.nombres.trim()) {
-      return "El campo Nombres es obligatorio";
-    }
-    if (!form.telefono.trim()) {
-      return "El campo Teléfono es obligatorio";
-    }
-    if (!form.correo.trim()) {
-      return "El campo Correo es obligatorio";
-    }
-    if (!form.pais.trim()) {
-      return "El campo País es obligatorio";
-    }
+  const validateForm = () => {
+    const { nombres, telefono, correo, pais } = form;
 
-    if (!regex.test(form.nombres)) {
+    if (!nombres.trim()) return "El campo Nombres es obligatorio";
+    if (!telefono.trim()) return "El campo Teléfono es obligatorio";
+    if (!correo.trim()) return "El campo Correo es obligatorio";
+    if (!pais.trim()) return "El campo País es obligatorio";
+
+    if (!textRegex.test(nombres))
       return "Nombres: No se permiten caracteres especiales";
-    }
-    if (!regex.test(form.telefono)) {
-      return "Teléfono: No se permiten caracteres especiales";
-    }
-    if (!regex.test(form.correo)) {
-      return "Correo: No se permiten caracteres especiales";
-    }
-    if (!regex.test(form.pais)) {
-      return "País: No se permiten caracteres especiales";
-    }
 
-    return null;
+    if (!textRegex.test(telefono))
+      return "Teléfono: No se permiten caracteres especiales";
+
+    if (!textRegex.test(correo))
+      return "Correo: No se permiten caracteres especiales";
+
+    if (!textRegex.test(pais))
+      return "País: No se permiten caracteres especiales";
+
+    return "";
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(null);
+
+    clearMessages();
 
     const validationError = validateForm();
+
     if (validationError) {
       setError(validationError);
       return;
     }
 
     setSubmitting(true);
+
     try {
-      if (editingId) {
+      if (editingId !== null) {
         await updateContact(editingId, form);
+        showSuccess("Contacto actualizado correctamente");
       } else {
         await createContact(form);
+        showSuccess("Contacto creado correctamente");
       }
 
-      const successMessage = editingId
-        ? "Contacto actualizado correctamente"
-        : "Contacto creado correctamente";
-
-      setSuccess(successMessage);
       resetForm();
-      await getContacts();
-
-      setTimeout(() => setSuccess(null), 3000);
+      await loadContacts();
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Error desconocido";
-      setError(errorMessage);
+      setError(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }
   };
 
   const handleEdit = (contact: Contact) => {
-    setForm(contact);
+    setForm({
+      nombres: contact.nombres,
+      telefono: contact.telefono,
+      correo: contact.correo,
+      pais: contact.pais,
+    });
+
     setEditingId(contact.id);
+    clearMessages();
   };
 
   const handleDelete = async (id: number, nombre: string) => {
     const confirmed = window.confirm(
-      `¿Estás seguro de que deseas eliminar el contacto "${nombre}"?`,
+      `¿Estás seguro de eliminar el contacto "${nombre}"?`,
     );
 
     if (!confirmed) return;
 
-    setError(null);
-    setSuccess(null);
+    clearMessages();
 
     try {
       await deleteContact(id);
-
-      setSuccess("Contacto eliminado correctamente");
-      await getContacts();
-
-      setTimeout(() => setSuccess(null), 3000);
+      showSuccess("Contacto eliminado correctamente");
+      await loadContacts();
     } catch (err) {
-      const errorMessage =
-        err instanceof Error ? err.message : "Error desconocido";
-      setError(errorMessage);
+      setError(getErrorMessage(err));
     }
-  };
-
-  const resetForm = () => {
-    setForm({ nombres: "", telefono: "", correo: "", pais: "" });
-    setEditingId(null);
-    setError(null);
-    setSuccess(null);
   };
 
   return (
@@ -161,27 +166,11 @@ function App() {
       <h1>Gestión de Contactos</h1>
 
       {error && <div className="error">{error}</div>}
-      {success && (
-        <div
-          style={{
-            color: "green",
-            fontWeight: "bold",
-            padding: "15px",
-            background: "#e8f5e9",
-            borderRadius: "8px",
-            marginBottom: "20px",
-            border: "2px solid #4caf50",
-            textAlign: "center",
-          }}
-        >
-          {success}
-        </div>
-      )}
+      {success && <div className="success">{success}</div>}
 
       <form
         onSubmit={handleSubmit}
-        className="form"
-        style={editingId ? { borderLeft: "5px solid #0284c7" } : {}}
+        className={`form ${editingId !== null ? "editing" : ""}`}
       >
         <input
           name="nombres"
@@ -191,6 +180,7 @@ function App() {
           disabled={submitting}
           required
         />
+
         <input
           name="telefono"
           placeholder="Teléfono"
@@ -199,6 +189,7 @@ function App() {
           disabled={submitting}
           required
         />
+
         <input
           name="correo"
           placeholder="Correo"
@@ -207,6 +198,7 @@ function App() {
           disabled={submitting}
           required
         />
+
         <input
           name="pais"
           placeholder="País"
@@ -217,10 +209,14 @@ function App() {
         />
 
         <button type="submit" disabled={submitting}>
-          {submitting ? "Procesando..." : editingId ? "Actualizar" : "Crear"}
+          {submitting
+            ? "Procesando..."
+            : editingId !== null
+              ? "Actualizar"
+              : "Crear"}
         </button>
 
-        {editingId && (
+        {editingId !== null && (
           <button type="button" onClick={resetForm} disabled={submitting}>
             Cancelar
           </button>
@@ -242,47 +238,28 @@ function App() {
               <th>Acciones</th>
             </tr>
           </thead>
+
           <tbody>
-            {contacts.map((c) => (
-              <tr key={c.id}>
-                <td>{c.nombres}</td>
-                <td>{c.telefono}</td>
-                <td>{c.correo}</td>
-                <td>{c.pais}</td>
-                <td
-                  style={{
-                    display: "flex",
-                    gap: "8px",
-                    justifyContent: "center",
-                  }}
-                >
+            {contacts.map((contact) => (
+              <tr key={contact.id}>
+                <td>{contact.nombres}</td>
+                <td>{contact.telefono}</td>
+                <td>{contact.correo}</td>
+                <td>{contact.pais}</td>
+
+                <td className="actions">
                   <button
-                    onClick={() => handleEdit(c)}
+                    className="btn-edit"
                     title="Editar contacto"
-                    style={{
-                      background: "#0284c7",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                    }}
+                    onClick={() => handleEdit(contact)}
                   >
                     ✏️ Editar
                   </button>
+
                   <button
-                    onClick={() => handleDelete(c.id, c.nombres)}
+                    className="btn-delete"
                     title="Eliminar contacto"
-                    style={{
-                      background: "#dc2626",
-                      color: "white",
-                      border: "none",
-                      borderRadius: "4px",
-                      padding: "6px 10px",
-                      cursor: "pointer",
-                      fontSize: "14px",
-                    }}
+                    onClick={() => handleDelete(contact.id, contact.nombres)}
                   >
                     🗑️ Eliminar
                   </button>
@@ -295,4 +272,5 @@ function App() {
     </div>
   );
 }
+
 export default App;
